@@ -8,3 +8,6 @@ Please use at your own discretion!
 
 Download the main file as is, and make sure it's saved as .html
   When you click to open it, open using any browser of your choice. 
+
+  or share this url:
+  https://n12hoven.github.io/courseVisualization/index.html
