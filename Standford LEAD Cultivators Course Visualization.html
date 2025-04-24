@@ -1,0 +1,2359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Stanford LEAD Course Selector</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            overflow-y: auto;
+        }
+        #container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 1240px;
+            margin: 0 auto;
+            overflow-x: auto;
+        }
+        svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        .course-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .course-card.selected rect:first-child {
+            stroke: #0066cc;
+            stroke-width: 3;
+        }
+        .course-card.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .course-card.disabled rect:first-child {
+            fill: #f0f0f0;
+        }
+        .course-card rect:first-child {
+            fill: #fff;
+        }
+        .course-card.expanded {
+            z-index: 10;
+        }
+        .expanded-course {
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        .legend-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .legend-item.selected rect {
+            stroke: #333;
+            stroke-width: 3;
+        }
+        .legend-item.selected text {
+            font-weight: bold;
+        }
+        .expanded-content text {
+            white-space: pre-wrap;
+        }
+        .goal-text {
+            width: 310px;
+        }
+        .checkbox {
+            cursor: pointer;
+        }
+        .checkbox rect {
+            fill: white;
+            stroke: #666;
+            stroke-width: 1.5;
+            transition: all 0.2s ease;
+        }
+        .checkbox rect[fill="#0066cc"] {
+            fill: #0066cc;
+            stroke: #0066cc;
+        }
+        .checkbox path {
+            stroke: white;
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .checkbox.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        .course-link {
+            cursor: pointer;
+            pointer-events: all;
+        }
+        .course-link circle {
+            fill: #0066cc;
+            transition: fill 0.2s ease;
+        }
+        .course-link:hover circle {
+            fill: #0052a3;
+        }
+        .course-link path {
+            fill: white;
+        }
+        .minimized-checkbox {
+            transition: all 0.2s ease;
+        }
+        .selected-indicator {
+            fill: #0066cc;
+            font-weight: bold;
+        }
+        .requirements-summary {
+            margin-top: 0px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            position: relative;
+        }
+        .requirements-summary h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .clear-all-btn {
+            position: absolute;
+            top: 0px;
+            right: 15px;
+            padding: 8px 15px;
+            margin: 0;
+            background-color: #F44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .share-buttons {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        .share-btn {
+            padding: 10px 20px;
+            background-color: #666;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .share-btn:hover {
+            background-color: #555;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+        }
+        .print-only {
+            display: none;
+        }
+        .requirements-columns {
+            display: flex;
+            gap: 20px;
+        }
+        .requirements-column {
+            flex: 1;
+        }
+        .requirements-group {
+            margin-bottom: 20px;
+        }
+        .requirements-group h4 {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 16px;
+        }
+        .requirements-group ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .requirements-group li {
+            margin: 5px 0;
+            color: #666;
+        }
+        .requirements-group .complete {
+            color: #4CAF50;
+        }
+        .requirements-group .incomplete {
+            color: #F44336;
+        }
+        .requirements-group .course-item {
+            color: #333;
+            font-size: 14px;
+            margin-left: 20px;
+        }
+        .clear-season-btn {
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .clear-season-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .clear-season-btn rect {
+            fill: rgba(255, 255, 255, 0.2);
+            stroke: white;
+            stroke-width: 1.5;
+            transition: fill 0.2s ease;
+        }
+        .clear-season-btn:hover rect {
+            fill: rgba(255, 255, 255, 0.3);
+        }
+        .clear-season-btn text {
+            fill: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .clear-all-btn {
+            padding: 10px 20px;
+            margin-top: 15px;
+            background-color: #F44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .clear-all-btn:hover:not(:disabled) {
+            background-color: #D32F2F;
+        }
+        .clear-all-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .clear-filters-btn {
+            padding: 8px 15px;
+            background-color: #666;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .clear-filters-btn:hover:not(:disabled) {
+            background-color: #555;
+        }
+        .clear-filters-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <svg viewBox="0 0 1200 2200" xmlns="http://www.w3.org/2000/svg" id="courseDiagram" style="width: 100%; max-width: 1400px;">
+            <!-- SVG Definitions -->
+            <defs>
+                <!-- Pattern definitions for course types -->
+                <pattern id="foundation-pattern" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="scale(1)">
+                    <rect width="8" height="8" fill="currentColor"/>
+                </pattern>
+                
+                <pattern id="leadership-pattern" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="scale(1)">
+                    <path d="M0 0 l8 8 M0 8 l8 -8" stroke="currentColor" stroke-width="2" fill="none"/>
+                </pattern>
+                
+                <pattern id="elective-pattern" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="scale(1)">
+                    <circle cx="4" cy="4" r="1.5" fill="currentColor"/>
+                </pattern>
+                
+                <!-- Link icon template -->
+                <g id="link-icon">
+                    <circle cx="0" cy="0" r="9" fill="#0066cc"/>
+                    <path d="M-4.5 -1.8 h9 v-1.8 l2.7 2.7 l-2.7 2.7 v-1.8 h-9 z" fill="white"/>
+                </g>
+                
+                <!-- Expanded course detail template -->
+                <g id="expanded-details">
+                    <rect width="350" height="200" fill="#f8f9fa" stroke="#ddd" stroke-width="1" rx="8"/>
+                </g>
+                
+                <!-- Checkbox template -->
+                <g id="checkbox-template">
+                    <rect width="16" height="16" rx="3" fill="white" stroke="#666" stroke-width="1.5"/>
+                </g>
+                
+                <!-- Checkmark -->
+                <g id="checkmark">
+                    <path d="M4 8 l3 3 l5 -5" fill="none" stroke="white" stroke-width="2"/>
+                </g>
+                
+                <!-- Season Icons -->
+                <g id="spring-icon">
+                    <circle cx="0" cy="0" r="3" fill="#4CAF50"/>
+                    <path d="M0 0 m-6 0 a6,6 0 1,1 12,0 a6,6 0 1,1 -12,0" fill="none" stroke="#4CAF50" stroke-width="1.5"/>
+                    <path d="M0 -6 l0 12 M-6 0 l12 0" stroke="#4CAF50" stroke-width="1.5"/>
+                </g>
+                
+                <g id="summer-icon">
+                    <circle cx="0" cy="0" r="4" fill="#FFA726" stroke="#FFA726" stroke-width="1.5"/>
+                    <path d="M0 -8 l0 3 M0 5 l0 3 M-8 0 l3 0 M5 0 l3 0 M-6 -6 l2 2 M4 4 l2 2 M-6 6 l2 -2 M4 -4 l2 -2" stroke="#FFA726" stroke-width="1.5"/>
+                </g>
+                
+                <g id="fall-icon">
+                    <path d="M-5 -5 q5 5 10 0 q0 5 -5 10 q-5 -5 -5 -10z" fill="#F44336"/>
+                    <path d="M0 5 l0 -10" stroke="#F44336" stroke-width="1.5"/>
+                </g>
+                
+                <g id="winter-icon">
+                    <path d="M0 0 m-6 0 l12 0 M0 -6 l0 12 M-4 -4 l8 8 M-4 4 l8 -8" stroke="#2196F3" stroke-width="1.5"/>
+                    <circle cx="0" cy="0" r="2" fill="#2196F3"/>
+                </g>
+                
+                <!-- White Season Icons for Headers -->
+                <g id="spring-icon-white">
+                    <circle cx="0" cy="0" r="4" fill="#fff"/>
+                    <path d="M0 0 m-8 0 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0" fill="none" stroke="#fff" stroke-width="2"/>
+                    <path d="M0 -8 l0 16 M-8 0 l16 0" stroke="#fff" stroke-width="2"/>
+                </g>
+                
+                <g id="summer-icon-white">
+                    <circle cx="0" cy="0" r="6" fill="#fff" stroke="#fff" stroke-width="2"/>
+                    <path d="M0 -13 l0 4 M0 9 l0 4 M-13 0 l4 0 M9 0 l4 0 M-8 -8 l2 2 M6 6 l2 2 M-8 8 l2 -2 M6 -6 l2 -2" stroke="#fff" stroke-width="2"/>
+                </g>
+                
+                <g id="fall-icon-white">
+                    <path d="M-5 -5 q5 5 10 0 q0 5 -5 10 q-5 -5 -5 -10z" fill="#fff"/>
+                    <path d="M0 5 l0 -10" stroke="#fff" stroke-width="2"/>
+                </g>
+                
+                <g id="winter-icon-white">
+                    <path d="M0 0 m-8 0 l16 0 M0 -8 l0 16 M-6 -6 l12 12 M-6 6 l12 -12" stroke="#fff" stroke-width="2"/>
+                    <circle cx="0" cy="0" r="2" fill="#fff"/>
+                </g>
+                
+                <!-- Season Header Template -->
+                <g id="season-header">
+                    <rect width="1060" height="40" rx="5"/>
+                </g>
+            </defs>
+            
+            <!-- Background -->
+            <rect width="1400" height="2100" fill="white"/>
+            
+            <!-- Content Background (just for seasons and courses) -->
+            <rect id="contentBackground" width="1100" height="100" x="50" y="200" fill="#f8f9fa" rx="8"/>
+            
+            <!-- Title -->
+            <text x="600" y="50" font-family="Arial, sans-serif" font-size="28" font-weight="bold" text-anchor="middle" fill="#333">Interactive Stanford LEAD Course Visualization</text>
+            
+            <!-- Legend -->
+            <g transform="translate(50, 80)">
+                <rect width="1100" height="110" fill="#f8f9fa" rx="8" stroke="#ddd"/>
+                
+                <!-- Course Types -->
+                <text x="20" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333">Course Types:</text>
+                
+                <!-- Foundation Legend -->
+                <g transform="translate(150, 20)" class="legend-item" data-filter-type="type" data-filter-value="foundation">
+                    <rect width="110" height="20" fill="#fff" stroke="#ddd" rx="4"/>
+                    <rect width="5" height="20" fill="url(#foundation-pattern)" style="color: #666" rx="4 0 0 4"/>
+                    <text x="15" y="15" font-family="Arial, sans-serif" font-size="14" fill="#333">Foundation</text>
+                </g>
+                
+                <!-- Leadership Core Legend -->
+                <g transform="translate(280, 20)" class="legend-item" data-filter-type="type" data-filter-value="leadership">
+                    <rect width="130" height="20" fill="#fff" stroke="#ddd" rx="4"/>
+                    <rect width="5" height="20" fill="url(#leadership-pattern)" style="color: #666" rx="4 0 0 4"/>
+                    <text x="15" y="15" font-family="Arial, sans-serif" font-size="14" fill="#333">Leadership Core</text>
+                </g>
+                
+                <!-- Elective Legend -->
+                <g transform="translate(430, 20)" class="legend-item" data-filter-type="type" data-filter-value="elective">
+                    <rect width="85" height="20" fill="#fff" stroke="#ddd" rx="4"/>
+                    <rect width="5" height="20" fill="url(#elective-pattern)" style="color: #666" rx="4 0 0 4"/>
+                    <text x="15" y="15" font-family="Arial, sans-serif" font-size="14" fill="#333">Elective</text>
+                </g>
+                
+                <!-- Seasons -->
+                <text x="600" y="35" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#333">Seasons:</text>
+                
+                <!-- Season Icons -->
+                <g transform="translate(695, 30)" class="legend-item" data-filter-type="season" data-filter-value="spring">
+                    <rect x="-10" y="-10" width="75" height="20" fill="transparent" stroke="transparent" rx="4"/>
+                    <use href="#spring-icon"/>
+                    <text x="15" y="5" font-family="Arial, sans-serif" font-size="14" fill="#333">Spring</text>
+                </g>
+                
+                <g transform="translate(775, 30)" class="legend-item" data-filter-type="season" data-filter-value="summer">
+                    <rect x="-10" y="-10" width="85" height="20" fill="transparent" stroke="transparent" rx="4"/>
+                    <use href="#summer-icon"/>
+                    <text x="15" y="5" font-family="Arial, sans-serif" font-size="14" fill="#333">Summer</text>
+                </g>
+                
+                <g transform="translate(865, 30)" class="legend-item" data-filter-type="season" data-filter-value="fall">
+                    <rect x="-10" y="-10" width="65" height="20" fill="transparent" stroke="transparent" rx="4"/>
+                    <use href="#fall-icon"/>
+                    <text x="15" y="5" font-family="Arial, sans-serif" font-size="14" fill="#333">Fall</text>
+                </g>
+                
+                <g transform="translate(935, 30)" class="legend-item" data-filter-type="season" data-filter-value="winter">
+                    <rect x="-10" y="-10" width="75" height="20" fill="transparent" stroke="transparent" rx="4"/>
+                    <use href="#winter-icon"/>
+                    <text x="15" y="5" font-family="Arial, sans-serif" font-size="14" fill="#333">Winter</text>
+                </g>
+                
+                <!-- Search Bar inside legend area -->
+                <foreignObject x="20" y="60" width="1060" height="40">
+                    <div style="display: flex; gap: 10px; align-items: center;" xmlns="http://www.w3.org/1999/xhtml">
+                        <input type="text" id="searchInput" placeholder="Search courses by title or description..." style="flex: 1; padding: 8px 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; background: white;"/>
+                        <button id="clearFiltersBtn" class="clear-filters-btn" disabled>Clear Filters</button>
+                    </div>
+                </foreignObject>
+            </g>
+        </svg>
+        
+        <!-- Requirements Summary -->
+        <div class="requirements-summary" id="requirementsSummary">
+            <button class="clear-all-btn" id="clearAllBtn" disabled>Clear All Selections</button>
+            <h3>Course Selection Summary</h3>
+            <div class="requirements-columns">
+                <div class="requirements-column" id="foundationLeadershipColumn">
+                    <!-- Foundation and Leadership courses will go here -->
+                </div>
+                <div class="requirements-column" id="electivesColumn">
+                    <!-- Elective courses will go here -->
+                </div>
+            </div>
+            <div class="share-buttons">
+                <button class="share-btn" id="shareSummaryBtn">Share Summary</button>
+                <button class="share-btn" id="shareAllBtn">Share All</button>
+                <button class="share-btn" id="shareToolBtn">Share Selection Tool</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Constants and Configuration
+        const LAYOUT_CONFIG = {
+            cardWidth: 340,
+            cardHeight: 80,
+            baseExpandedHeight: 260,
+            columnGap: 15,
+            rowGap: 10,
+            sectionGap: 0,
+            headerHeight: 20,
+            headerToContentGap: 50,
+            cardsPerRow: 3,
+            contentPadding: 15,
+            legendStartX: 70,
+            legendContentWidth: 1060
+        };
+        
+        // Course data structure with URLs
+        const allCourses = [
+            // Foundation courses
+            { 
+                title: "Critical Analytical Thinking", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/critical-analytical-thinking",
+                type: "foundation", 
+                seasons: ["spring", "fall"], 
+                instructor: "Andrea Smith",
+                details: { 
+                    goal: "Develop skills to analyze complex business problems, formulate well-reasoned arguments, and consider alternative viewpoints",
+                    objectives: [
+                        "Master frameworks for analyzing complex problems",
+                        "Formulate well-reasoned arguments",
+                        "Consider alternative points of view",
+                        "Create dynamic solutions to complex challenges",
+                        "Navigate opportunities and obstacles in driving innovation"
+                    ],
+                    outcomes: [
+                        "Enhanced analytical problem-solving skills",
+                        "Ability to formulate compelling arguments",
+                        "Capability to evaluate multiple perspectives",
+                        "Improved decision-making processes",
+                        "Greater comfort with ambiguity and complexity"
+                    ]
+                }
+            },
+            { 
+                title: "Financing Innovation", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/financing-innovation",
+                type: "foundation", 
+                seasons: ["spring", "fall"], 
+                instructor: "Ilya Strebulaev",
+                details: { 
+                    goal: "Master key techniques of financial valuation and capital budgeting to ensure ideas get the attention and funding they deserve",
+                    objectives: [
+                        "Build financial models for new product launches",
+                        "Identify financial drivers of project success",
+                        "Apply reliable financial metrics",
+                        "Maximize project impact through financial guidance",
+                        "Evaluate startup valuation and VC financing"
+                    ],
+                    outcomes: [
+                        "Ability to build financial models for projects",
+                        "Understanding of how financial markets evaluate stocks",
+                        "Skills to assess business value in acquisitions",
+                        "Capability to ensure effective resource allocation",
+                        "Knowledge of key financial metrics and their reliability"
+                    ]
+                }
+            },
+            
+            // Leadership Core courses
+            { 
+                title: "Strategic Leadership", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/strategic-leadership",
+                type: "leadership", 
+                seasons: ["summer", "winter"], 
+                instructor: "Jesper Sørensen",
+                details: { 
+                    goal: "Learn to think strategically to identify opportunities, develop viable action plans, and execute strategies that guide teams to success",
+                    objectives: [
+                        "Diagnose reasons behind organizational success and failure",
+                        "Identify strategic opportunities and challenges",
+                        "Develop viable courses of action",
+                        "Execute strategy to guide and motivate teams",
+                        "Build sustainably successful organizations"
+                    ],
+                    outcomes: [
+                        "Enhanced strategic thinking skills as second nature",
+                        "Ability to diagnose organizational performance",
+                        "Capability to formulate effective strategies",
+                        "Skills to execute strategy with team alignment",
+                        "Understanding of competitive advantage factors"
+                    ]
+                }
+            },
+            { 
+                title: "Intentional Leadership", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/intentional-leadership",
+                type: "leadership", 
+                seasons: ["summer", "winter"], 
+                instructor: "Maggie Neale",
+                details: { 
+                    goal: "Develop values-based leadership and clarify personal values to make better managerial decisions",
+                    objectives: [
+                        "Clarify personal and organizational values",
+                        "Navigate managerial dilemmas effectively",
+                        "Understand diverse viewpoints",
+                        "Avoid cognitive and social decision-making pitfalls",
+                        "Practice values-based leadership"
+                    ],
+                    outcomes: [
+                        "Enhanced values-driven decision making",
+                        "Improved ethical leadership capabilities",
+                        "Better understanding of diverse perspectives",
+                        "Skills to avoid common leadership traps",
+                        "Stronger alignment of actions with values"
+                    ]
+                }
+            },
+            
+            // Elective courses
+            { 
+                title: "Getting (More of) What You Want", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/getting-more-what-you-want", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Margaret Neale",
+                details: {
+                    goal: "Develop negotiating fluency to know when to battle and when to collaborate for optimal outcomes",
+                    objectives: [
+                        "Master negotiation preparation strategies",
+                        "Distinguish between battle and collaboration approaches",
+                        "Build win-win solutions",
+                        "Develop negotiation confidence",
+                        "Apply strategic negotiation frameworks"
+                    ],
+                    outcomes: [
+                        "Enhanced negotiation fluency",
+                        "Better conflict resolution skills",
+                        "Improved collaborative problem-solving",
+                        "Greater negotiation success rates",
+                        "Strategic approach to negotiations"
+                    ]
+                }
+            },
+            { 
+                title: "Power of Story", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/power-story", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Jennifer Aaker",
+                details: {
+                    goal: "Learn how to harness the power of story to fuel connection, innovation, and growth in business leadership",
+                    objectives: [
+                        "Build a bank of Signature Stories",
+                        "Create connections through storytelling",
+                        "Use story to build high-performing teams",
+                        "Drive business growth through narrative",
+                        "Leverage best practices from industry leaders"
+                    ],
+                    outcomes: [
+                        "Ability to curate, craft, and tell stories effectively",
+                        "Skills to harness story for business growth",
+                        "Capability to highlight personal Signature Stories",
+                        "Understanding of story as a business asset",
+                        "Techniques to build high-performing teams through story"
+                    ]
+                }
+            },
+            { 
+                title: "Business Model Analysis and Design", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/business-model-analysis-design", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Hayagreeva Rao",
+                details: {
+                    goal: "Learn to structure, analyze, and design innovative business models for new and established companies",
+                    objectives: [
+                        "Structure business model blueprints",
+                        "Master business model core elements",
+                        "Design innovative business models",
+                        "Analyze industry business cases",
+                        "Apply systematic business model development"
+                    ],
+                    outcomes: [
+                        "Ability to create effective business model blueprints",
+                        "Skills in analyzing business model viability",
+                        "Capability to design innovative business structures",
+                        "Understanding of value creation and profit models",
+                        "Experience applying business model frameworks"
+                    ]
+                }
+            },
+            { 
+                title: "Neuroscience and Leadership", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/neuroscience-leadership", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Brian Lowery",
+                details: {
+                    goal: "Build skills and habits to manage stress, shape success narratives, and achieve sustained leadership excellence",
+                    objectives: [
+                        "Apply neuroscience frameworks to leadership",
+                        "Develop stress management techniques",
+                        "Build personal success narratives",
+                        "Create habits for sustained excellence",
+                        "Integrate brain and body for optimal performance"
+                    ],
+                    outcomes: [
+                        "Enhanced leadership resilience",
+                        "Better stress management capabilities",
+                        "Stronger personal success narratives",
+                        "Habits for sustained excellence",
+                        "Improved mind-body integration for leadership"
+                    ]
+                }
+            },
+            { 
+                title: "A New Type of Leader", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/new-type-leader", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Lauren Zander",
+                details: {
+                    goal: "Unlock higher purpose in yourself and teams while using humor as a strategic tool for influence",
+                    objectives: [
+                        "Discover personal and team purpose",
+                        "Use humor as a leadership tool",
+                        "Build influence through authenticity",
+                        "Create purpose-driven organizations",
+                        "Master unconventional leadership techniques"
+                    ],
+                    outcomes: [
+                        "Enhanced sense of purpose in leadership",
+                        "Ability to use humor strategically",
+                        "Greater influence and persuasion skills",
+                        "Tools for creating purpose-driven teams",
+                        "Mastery of unique leadership approaches"
+                    ]
+                }
+            },
+            { 
+                title: "Inclusive Leadership", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/inclusive-leadership", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Adina Sterling",
+                details: {
+                    goal: "Explore barriers and solutions to creating diverse, inclusive workforces where all people feel valued",
+                    objectives: [
+                        "Identify diversity barriers in organizations",
+                        "Develop inclusive leadership practices",
+                        "Create cultures of belonging",
+                        "Apply diversity frameworks effectively",
+                        "Build inclusive team environments"
+                    ],
+                    outcomes: [
+                        "Enhanced inclusive leadership capabilities",
+                        "Better understanding of diversity challenges",
+                        "Skills to create inclusive cultures",
+                        "Practical methods for fostering belonging",
+                        "Ability to lead diverse teams effectively"
+                    ]
+                }
+            },
+            { 
+                title: "Design for Disruption", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/design-disruption", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Sarah Soule",
+                details: {
+                    goal: "Understand disruption to effectively create change or avoid being disrupted in any industry",
+                    objectives: [
+                        "Analyze disruption frameworks",
+                        "Assess disruptive potential of innovations",
+                        "Develop disruption strategies",
+                        "Understand incumbent response options",
+                        "Apply disruption theory across industries"
+                    ],
+                    outcomes: [
+                        "Clear understanding of disruption dynamics",
+                        "Skills to evaluate disruptive potential",
+                        "Ability to develop disruption strategies",
+                        "Knowledge of defensive approaches",
+                        "Framework for industry disruption analysis"
+                    ]
+                }
+            },
+            { 
+                title: "Persuasion: Principles and Practice", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/persuasion-principles-practice", 
+                type: "elective", 
+                seasons: ["spring", "fall"], 
+                instructor: "Matt Abrahams",
+                details: {
+                    goal: "Gain insight into the psychology of persuasion to have influence in any environment",
+                    objectives: [
+                        "Master principles of persuasion",
+                        "Apply psychological influence techniques",
+                        "Build persuasive communication skills",
+                        "Understand audience psychology",
+                        "Create compelling arguments"
+                    ],
+                    outcomes: [
+                        "Enhanced persuasion capabilities",
+                        "Better understanding of influence psychology",
+                        "Improved communication effectiveness",
+                        "Skills for audience adaptation",
+                        "Ability to craft compelling messages"
+                    ]
+                }
+            },
+            { 
+                title: "The Friction Project", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/friction-project", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Robert Sutton",
+                details: {
+                    goal: "Learn to manage organizational friction wisely to enable successful change initiatives",
+                    objectives: [
+                        "Master the craft of friction fixing",
+                        "Apply the PRESS Framework for change",
+                        "Build effective change teams",
+                        "Create 100-day action plans",
+                        "Serve as trustee of others' time"
+                    ],
+                    outcomes: [
+                        "Skills in managing organizational friction",
+                        "Ability to lead successful change initiatives",
+                        "PRESS Framework mastery",
+                        "Practical change implementation plans",
+                        "Enhanced organizational efficiency"
+                    ]
+                }
+            },
+            { 
+                title: "Leading with Insight", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/leading-insight", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "David Bradford",
+                details: {
+                    goal: "Develop self-awareness and team dynamics skills to diagnose barriers and build on strengths for better outcomes",
+                    objectives: [
+                        "Analyze leadership style for flexibility",
+                        "Diagnose team barriers and strengths",
+                        "Apply tools for strategic change",
+                        "Reflect on personal contributions to outcomes",
+                        "Develop management techniques flexibility"
+                    ],
+                    outcomes: [
+                        "Enhanced self-awareness as a leader",
+                        "Better understanding of team dynamics",
+                        "Skills to diagnose organizational issues",
+                        "Ability to enact strategic change",
+                        "Improved management flexibility"
+                    ]
+                }
+            },
+            { 
+                title: "Building Power to Lead", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/building-power-lead", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Matt Jackson",
+                details: {
+                    goal: "Develop skills to build power and exert influence to get things done, especially new initiatives",
+                    objectives: [
+                        "Diagnose organizational dynamics",
+                        "Develop and use power effectively",
+                        "Overcome stakeholder resistance to change",
+                        "Build influence across organizations",
+                        "Navigate organizational politics"
+                    ],
+                    outcomes: [
+                        "Enhanced ability to diagnose organizational dynamics",
+                        "Skills to develop and use power effectively",
+                        "Capability to implement change initiatives",
+                        "Understanding of stakeholder management",
+                        "Tools to navigate organizational resistance"
+                    ]
+                }
+            },
+            { 
+                title: "Design Thinking", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/design-thinking", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Jeremy Utley",
+                details: {
+                    goal: "Follow a systematic innovation process using design thinking and lean startup concepts to solve real-world problems",
+                    objectives: [
+                        "Apply design thinking methodology",
+                        "Engage in empathetic user interactions",
+                        "Create and test rapid prototypes",
+                        "Build and test business cases",
+                        "Address internal or customer-facing needs"
+                    ],
+                    outcomes: [
+                        "Mastery of systematic innovation process",
+                        "Skills in rapid prototyping and testing",
+                        "Ability to identify unmet user needs",
+                        "Capability to build viable business cases",
+                        "Experience applying design thinking to real problems"
+                    ]
+                }
+            },
+            { 
+                title: "Designing Organizations", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/designing-organizations", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Sarah Cliffe",
+                details: {
+                    goal: "Learn to design effective organizational structures, teams, and cultures that drive success",
+                    objectives: [
+                        "Apply design thinking to organizations",
+                        "Create effective team structures",
+                        "Design organizational cultures",
+                        "Manage change initiatives effectively",
+                        "Build adaptable organizations"
+                    ],
+                    outcomes: [
+                        "Skills in organizational design",
+                        "Ability to structure effective teams",
+                        "Capability to shape organizational culture",
+                        "Change management expertise",
+                        "Experience in creating adaptable structures"
+                    ]
+                }
+            },
+            { 
+                title: "Communicating with Impact", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/communicating-impact", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Matt Abrahams",
+                details: {
+                    goal: "Become a savvy communicator who can craft compelling messages and galvanize groups to action",
+                    objectives: [
+                        "Craft compelling leadership messages",
+                        "Articulate exciting visions",
+                        "Galvanize groups around action",
+                        "Apply practical communication lessons",
+                        "Master experiential communication techniques"
+                    ],
+                    outcomes: [
+                        "Enhanced communication effectiveness",
+                        "Ability to inspire and motivate others",
+                        "Skills for crafting compelling messages",
+                        "Practical communication strategies",
+                        "Greater influence as a leader"
+                    ]
+                }
+            },
+            { 
+                title: "Crisis Management", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/crisis-management", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Tom Kosnik",
+                details: {
+                    goal: "Develop the tools and framework to manage crises effectively and understand their nature and evolution",
+                    objectives: [
+                        "Understand the origin and nature of crises",
+                        "Develop stakeholder management strategies",
+                        "Practice high-pressure problem solving",
+                        "Build crisis communication skills",
+                        "Create crisis anticipation capabilities"
+                    ],
+                    outcomes: [
+                        "Crisis management framework mastery",
+                        "Enhanced strategic thinking under pressure",
+                        "Improved crisis communication skills",
+                        "Better stakeholder management during crises",
+                        "Crisis anticipation and scanning abilities"
+                    ]
+                }
+            },
+            { 
+                title: "Leadership Agility", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/leadership-agility", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Allan Cohen",
+                details: {
+                    goal: "Develop the ability to flexibly respond to changing environments with ease and agility",
+                    objectives: [
+                        "Embrace spontaneity and adaptability",
+                        "Work effectively with diverse teams",
+                        "Tailor behavior to audience needs",
+                        "Maximize creativity and problem-solving",
+                        "Engage others in meaningful interactions"
+                    ],
+                    outcomes: [
+                        "Enhanced leadership flexibility",
+                        "Improved spontaneous response capabilities",
+                        "Better understanding of what drives others",
+                        "Enhanced creative problem-solving skills",
+                        "Ability to engage others effortlessly"
+                    ]
+                }
+            },
+            { 
+                title: "Decision Making", 
+                url: "https://www.gsb.stanford.edu/exec-ed/programs/stanford-lead/curriculum/courses/decision-making", 
+                type: "elective", 
+                seasons: ["summer", "winter"], 
+                instructor: "Howie Rosen",
+                details: {
+                    goal: "Learn tools and frameworks to make good decisions across different types of decisions with varying stakes and information",
+                    objectives: [
+                        "Follow disciplined decision-making processes",
+                        "Evaluate quantifiable and subjective information",
+                        "Identify and assess risk factors",
+                        "Balance objective and subjective criteria",
+                        "Apply frameworks to complex decisions"
+                    ],
+                    outcomes: [
+                        "Improved decision-making capabilities",
+                        "Skills to handle different types of decisions",
+                        "Ability to quantify and assess risks",
+                        "Framework for balancing multiple factors",
+                        "Enhanced judgment in complex situations"
+                    ]
+                }
+            }
+        ];
+        
+        // State management
+        const state = {
+            expandedCourses: new Set(),
+            selectedFilters: {
+                type: new Set(),
+                season: new Set()
+            },
+            searchQuery: '',
+            selectedCourses: {
+                spring: new Set(),
+                summer: new Set(),
+                fall: new Set(),
+                winter: new Set()
+            },
+            foundationSeason: null
+        };
+        
+        // Course data organized by season
+        const courseData = {
+            spring: {
+                color: "#4CAF50",
+                courses: allCourses.filter(course => course.seasons.includes("spring"))
+            },
+            summer: {
+                color: "#FFA726",
+                courses: allCourses.filter(course => course.seasons.includes("summer"))
+            },
+            fall: {
+                color: "#F44336",
+                courses: allCourses.filter(course => course.seasons.includes("fall"))
+            },
+            winter: {
+                color: "#2196F3",
+                courses: allCourses.filter(course => course.seasons.includes("winter"))
+            }
+        };
+        
+        // Layout calculation functions
+        function calculateCardPosition(index) {
+            const row = Math.floor(index / LAYOUT_CONFIG.cardsPerRow);
+            const col = index % LAYOUT_CONFIG.cardsPerRow;
+            
+            const totalGapWidth = (LAYOUT_CONFIG.cardsPerRow - 1) * LAYOUT_CONFIG.columnGap;
+            const totalCardWidth = LAYOUT_CONFIG.cardsPerRow * LAYOUT_CONFIG.cardWidth;
+            const totalWidth = totalCardWidth + totalGapWidth;
+            
+            const startOffset = (LAYOUT_CONFIG.legendContentWidth - totalWidth) / 2;
+            
+            const x = startOffset + col * (LAYOUT_CONFIG.cardWidth + LAYOUT_CONFIG.columnGap);
+            return { row, col, x };
+        }
+        
+        function calculateExpandedHeight(course) {
+            if (!course.details || !course.details.goal) {
+                return LAYOUT_CONFIG.baseExpandedHeight;
+            }
+            
+            const goalLines = Math.ceil(course.details.goal.length / 45);
+            const objectivesHeight = course.details.objectives.length * 15;
+            const outcomesHeight = course.details.outcomes.length * 15;
+            
+            const calculatedHeight = 120 + (goalLines * 15) + 25 + objectivesHeight + 20 + outcomesHeight + 30;
+            
+            return Math.max(LAYOUT_CONFIG.baseExpandedHeight, calculatedHeight);
+        }
+        
+        function calculateSectionLayout(courses, seasonName) {
+            const rows = Math.ceil(courses.length / LAYOUT_CONFIG.cardsPerRow);
+            let currentY = 0;
+            const rowPositions = [];
+            
+            for (let row = 0; row < rows; row++) {
+                let rowHeight = LAYOUT_CONFIG.cardHeight;
+                
+                for (let col = 0; col < LAYOUT_CONFIG.cardsPerRow; col++) {
+                    const index = row * LAYOUT_CONFIG.cardsPerRow + col;
+                    if (index < courses.length) {
+                        const course = courses[index];
+                        const courseKey = `${course.title}-${seasonName}`;
+                        if (state.expandedCourses.has(courseKey)) {
+                            const expandedHeight = calculateExpandedHeight(course);
+                            rowHeight = Math.max(rowHeight, expandedHeight);
+                        }
+                    }
+                }
+                
+                rowPositions.push({ y: currentY, height: rowHeight });
+                currentY += rowHeight + LAYOUT_CONFIG.rowGap;
+            }
+            
+            const totalHeight = currentY - LAYOUT_CONFIG.rowGap;
+            return { rowPositions, totalHeight };
+        }
+        
+        // Business logic functions
+        function getNextSeason(season) {
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            const index = seasons.indexOf(season);
+            return seasons[(index + 1) % seasons.length];
+        }
+        
+        function isExtraLeadershipCourse(course, season) {
+            if (course.type !== 'leadership') return false;
+            
+            if (!state.foundationSeason) return false;
+            
+            const nextSeason = getNextSeason(state.foundationSeason);
+            
+            let leadershipInRequiredSeason = 0;
+            for (let c of state.selectedCourses[nextSeason]) {
+                const selectedCourse = allCourses.find(ac => ac.title === c);
+                if (selectedCourse && selectedCourse.type === 'leadership') {
+                    leadershipInRequiredSeason++;
+                }
+            }
+            
+            if (season === nextSeason && leadershipInRequiredSeason > 1) {
+                return true;
+            }
+            
+            if (season !== nextSeason && leadershipInRequiredSeason >= 1) {
+                return true;
+            }
+            
+            return false;
+        }
+        
+        function isValidLeadershipSelection(season) {
+            if (!state.foundationSeason) return false;
+            
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            const foundationIndex = seasons.indexOf(state.foundationSeason);
+            const currentIndex = seasons.indexOf(season);
+            
+            if (foundationIndex === 3 && currentIndex === 0) return true;
+            if (foundationIndex === 3 && currentIndex === 1) return true;
+            if (foundationIndex === 3 && currentIndex === 2) return true;
+            
+            return currentIndex > foundationIndex;
+        }
+        
+        function canSelectCourse(course, season) {
+            if (state.selectedCourses[season].has(course.title)) return true;
+            
+            if (state.selectedCourses[season].size >= 2) return false;
+            
+            if (course.type === 'foundation') {
+                if (!state.foundationSeason) return true;
+                return season === state.foundationSeason;
+            }
+            
+            if (course.type === 'leadership') {
+                if (!state.foundationSeason) return true;
+                
+                const nextSeason = getNextSeason(state.foundationSeason);
+                let hasLeadershipInNextSeason = false;
+                
+                for (let c of state.selectedCourses[nextSeason]) {
+                    const selectedCourse = allCourses.find(ac => ac.title === c);
+                    if (selectedCourse && selectedCourse.type === 'leadership') {
+                        hasLeadershipInNextSeason = true;
+                        break;
+                    }
+                }
+                
+                if (season === nextSeason && !hasLeadershipInNextSeason) {
+                    return true;
+                }
+                
+                if (hasLeadershipInNextSeason) {
+                    return isValidLeadershipSelection(season);
+                }
+                
+                return season === nextSeason;
+            }
+            
+            if (course.type === 'elective') {
+                let totalElectives = 0;
+                for (let s in state.selectedCourses) {
+                    totalElectives += [...state.selectedCourses[s]].filter(c => {
+                        const actualCourse = allCourses.find(ac => ac.title === c);
+                        return actualCourse.type === 'elective' || 
+                               (actualCourse.type === 'leadership' && isExtraLeadershipCourse(actualCourse, s));
+                    }).length;
+                }
+                return totalElectives < 5;
+            }
+            
+            return false;
+        }
+        
+        function isCourseDisabled(course, season) {
+            for (let s in state.selectedCourses) {
+                if (s !== season && state.selectedCourses[s].has(course.title)) {
+                    return true;
+                }
+            }
+            
+            if (course.type === 'foundation' && state.foundationSeason && state.foundationSeason !== season) {
+                return true;
+            }
+            
+            if (state.selectedCourses[season].size >= 2 && !state.selectedCourses[season].has(course.title)) {
+                return true;
+            }
+            
+            if (course.type === 'leadership') {
+                if (state.foundationSeason && !isValidLeadershipSelection(season)) {
+                    return true;
+                }
+                return false;
+            }
+            
+            if (course.type === 'elective') {
+                let totalElectives = 0;
+                for (let s in state.selectedCourses) {
+                    totalElectives += [...state.selectedCourses[s]].filter(c => {
+                        const actualCourse = allCourses.find(ac => ac.title === c);
+                        return actualCourse.type === 'elective' || 
+                               (actualCourse.type === 'leadership' && isExtraLeadershipCourse(actualCourse, s));
+                    }).length;
+                }
+                if (totalElectives >= 5 && !state.selectedCourses[season].has(course.title)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // UI Component Creation Functions
+        function createSeasonSection(svg, seasonData, seasonName, yPosition) {
+            const seasonGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            seasonGroup.setAttribute("transform", `translate(${LAYOUT_CONFIG.legendStartX}, ${yPosition})`);
+            seasonGroup.setAttribute("data-season", seasonName);
+            
+            const header = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            header.setAttribute("href", "#season-header");
+            header.setAttribute("fill", seasonData.color);
+            seasonGroup.appendChild(header);
+            
+            const iconGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            iconGroup.setAttribute("transform", `translate(30, 20)`);
+            const icon = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            icon.setAttribute("href", `#${seasonName}-icon-white`);
+            iconGroup.appendChild(icon);
+            seasonGroup.appendChild(iconGroup);
+            
+            const title = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            title.setAttribute("x", "60");
+            title.setAttribute("y", "27");
+            title.setAttribute("font-family", "Arial, sans-serif");
+            title.setAttribute("font-size", "20");
+            title.setAttribute("font-weight", "bold");
+            title.setAttribute("fill", "white");
+            title.textContent = `${seasonName.toUpperCase()} COURSES`;
+            seasonGroup.appendChild(title);
+            
+            const clearButton = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            clearButton.setAttribute("class", "clear-season-btn");
+            clearButton.setAttribute("transform", `translate(920, 10)`);
+            clearButton.setAttribute("data-season", seasonName);
+            
+            const buttonRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            buttonRect.setAttribute("width", "130");
+            buttonRect.setAttribute("height", "24");
+            buttonRect.setAttribute("rx", "4");
+            clearButton.appendChild(buttonRect);
+            
+            const buttonText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            buttonText.setAttribute("x", "65");
+            buttonText.setAttribute("y", "17");
+            buttonText.setAttribute("text-anchor", "middle");
+            buttonText.textContent = `Clear ${seasonName}`;
+            clearButton.appendChild(buttonText);
+            
+            clearButton.addEventListener('click', () => {
+                clearSeasonSelections(seasonName);
+            });
+            
+            seasonGroup.appendChild(clearButton);
+            
+            const coursesGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            coursesGroup.setAttribute("transform", `translate(0, ${LAYOUT_CONFIG.headerToContentGap})`);
+            
+            const { rowPositions } = calculateSectionLayout(seasonData.courses, seasonName);
+            
+            seasonData.courses.forEach((course, index) => {
+                const { row, col, x } = calculateCardPosition(index);
+                const y = rowPositions[row].y;
+                
+                const courseGroup = createCourseCard(course, seasonData.color, seasonName);
+                courseGroup.setAttribute("transform", `translate(${x}, ${y})`);
+                courseGroup.setAttribute("data-course-title", course.title);
+                courseGroup.setAttribute("data-course-type", course.type);
+                courseGroup.setAttribute("data-course-seasons", course.seasons.join(','));
+                courseGroup.setAttribute("data-current-season", seasonName);
+                
+                courseGroup.addEventListener('click', (e) => {
+                    // Check if the click was on the link icon
+                    if (e.target.closest('.course-link')) {
+                        return; // Let the link handle the click
+                    }
+                    toggleCourseDetails(courseGroup, course, seasonName);
+                });
+                
+                coursesGroup.appendChild(courseGroup);
+            });
+            
+            seasonGroup.appendChild(coursesGroup);
+            return seasonGroup;
+        }
+        
+        function createCourseCard(course, seasonColor, currentSeason) {
+            const courseGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            courseGroup.setAttribute("class", "course-card");
+            
+            const card = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            card.setAttribute("width", LAYOUT_CONFIG.cardWidth.toString());
+            card.setAttribute("height", LAYOUT_CONFIG.cardHeight.toString());
+            card.setAttribute("fill", "#fff");
+            card.setAttribute("stroke", "#ddd");
+            card.setAttribute("stroke-width", "1");
+            card.setAttribute("rx", "8");
+            card.setAttribute("style", "fill-opacity: 1");
+            courseGroup.appendChild(card);
+            
+            const indicatorRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            indicatorRect.setAttribute("width", "8");
+            indicatorRect.setAttribute("height", LAYOUT_CONFIG.cardHeight.toString());
+            indicatorRect.setAttribute("fill", `url(#${course.type}-pattern)`);
+            indicatorRect.setAttribute("rx", "8 0 0 8");
+            indicatorRect.style.color = seasonColor;
+            courseGroup.appendChild(indicatorRect);
+            
+            createCardContent(courseGroup, course);
+            
+            // Add link icon
+            const linkGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            linkGroup.setAttribute("class", "course-link");
+            linkGroup.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - 48}, 20)`);
+            
+            // Create clickable link
+            const link = document.createElementNS("http://www.w3.org/2000/svg", "a");
+            link.setAttribute("href", course.url);
+            link.setAttribute("target", "_blank");
+            link.setAttribute("rel", "noopener noreferrer");
+            
+            const linkIcon = document.createElementNS("http://www.w3.org/2000/svg", "use");
+            linkIcon.setAttribute("href", "#link-icon");
+            link.appendChild(linkIcon);
+            
+            linkGroup.appendChild(link);
+            courseGroup.appendChild(linkGroup);
+            
+            const seasonsContainer = createSeasonIndicators(course);
+            seasonsContainer.setAttribute("data-season-icons", "true");
+            courseGroup.appendChild(seasonsContainer);
+            
+            const minimizedCheckbox = createCheckbox(course, currentSeason, true);
+            minimizedCheckbox.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - 30}, 10)`);
+            courseGroup.appendChild(minimizedCheckbox);
+            
+            return courseGroup;
+        }
+        
+        function createCardContent(courseGroup, course) {
+            const courseTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            courseTitle.setAttribute("x", "20");
+            courseTitle.setAttribute("y", "28");
+            courseTitle.setAttribute("font-family", "Arial, sans-serif");
+            courseTitle.setAttribute("font-size", "16");
+            courseTitle.setAttribute("font-weight", "bold");
+            courseTitle.setAttribute("fill", "#333");
+            
+            const maxTitleLength = 30;
+            const titleText = course.title;
+            
+            if (titleText.length > maxTitleLength && titleText.includes(' ')) {
+                const words = titleText.split(' ');
+                let firstLine = '';
+                let secondLine = '';
+                
+                let bestSplit = Math.ceil(words.length / 2);
+                for (let i = 0; i < bestSplit; i++) {
+                    firstLine += words[i] + ' ';
+                }
+                for (let i = bestSplit; i < words.length; i++) {
+                    secondLine += words[i] + ' ';
+                }
+                
+                courseTitle.setAttribute("y", "24");
+                courseTitle.textContent = firstLine.trim();
+                courseGroup.appendChild(courseTitle);
+                
+                const secondLineText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                secondLineText.setAttribute("x", "20");
+                secondLineText.setAttribute("y", "43");
+                secondLineText.setAttribute("font-family", "Arial, sans-serif");
+                secondLineText.setAttribute("font-size", "16");
+                secondLineText.setAttribute("font-weight", "bold");
+                secondLineText.setAttribute("fill", "#333");
+                secondLineText.textContent = secondLine.trim();
+                courseGroup.appendChild(secondLineText);
+            } else {
+                courseTitle.textContent = titleText;
+                courseGroup.appendChild(courseTitle);
+            }
+            
+            const instructorText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            instructorText.setAttribute("x", "20");
+            instructorText.setAttribute("y", titleText.length > maxTitleLength ? "65" : "50");
+            instructorText.setAttribute("font-family", "Arial, sans-serif");
+            instructorText.setAttribute("font-size", "12");
+            instructorText.setAttribute("font-style", "italic");
+            instructorText.setAttribute("fill", "#666");
+            instructorText.textContent = course.instructor;
+            courseGroup.appendChild(instructorText);
+        }
+        
+        function createSeasonIndicators(course) {
+            const seasonsContainer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            const seasonIconsWidth = course.seasons.length * 15;
+            seasonsContainer.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - seasonIconsWidth - 10}, ${LAYOUT_CONFIG.cardHeight - 15})`);
+            
+            course.seasons.forEach((season, i) => {
+                const seasonIndicator = document.createElementNS("http://www.w3.org/2000/svg", "use");
+                seasonIndicator.setAttribute("href", `#${season}-icon`);
+                seasonIndicator.setAttribute("transform", `translate(${i * 20}, 0)`);
+                seasonsContainer.appendChild(seasonIndicator);
+            });
+            
+            return seasonsContainer;
+        }
+        
+        function createCheckbox(course, currentSeason, isMinimized = false) {
+            const checkboxGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            checkboxGroup.setAttribute("class", `checkbox${isMinimized ? ' minimized-checkbox' : ''}`);
+            
+            const isSelected = state.selectedCourses[currentSeason]?.has(course.title);
+            const isDisabled = isCourseDisabled(course, currentSeason);
+            
+            const checkboxRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            checkboxRect.setAttribute("width", "20");
+            checkboxRect.setAttribute("height", "20");
+            checkboxRect.setAttribute("rx", "3");
+            checkboxRect.setAttribute("fill", isSelected ? "#0066cc" : "white");
+            checkboxRect.setAttribute("stroke", isSelected ? "#0066cc" : "#666");
+            checkboxRect.setAttribute("stroke-width", "1.5");
+            checkboxGroup.appendChild(checkboxRect);
+            
+            if (isSelected) {
+                const checkmark = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                checkmark.setAttribute("d", "M4 10 l3 3 l8 -8");
+                checkmark.setAttribute("fill", "none");
+                checkmark.setAttribute("stroke", "white");
+                checkmark.setAttribute("stroke-width", "3");
+                checkmark.setAttribute("stroke-linecap", "round");
+                checkmark.setAttribute("stroke-linejoin", "round");
+                checkboxGroup.appendChild(checkmark);
+            }
+            
+            if (isDisabled && !isSelected) {
+                checkboxGroup.classList.add('disabled');
+            }
+            
+            if (!isDisabled || isSelected) {
+                checkboxGroup.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    handleCourseSelection(course, currentSeason);
+                });
+            }
+            
+            return checkboxGroup;
+        }
+        
+        function createExpandedContent(course, currentSeason) {
+            const contentGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            contentGroup.setAttribute("class", "expanded-content");
+            
+            const expandedHeight = calculateExpandedHeight(course);
+            const startY = 85;
+            
+            contentGroup.setAttribute("transform", `translate(20, ${startY})`);
+            
+            if (course.details) {
+                let currentY = 0;
+                
+                const goalTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                goalTitle.setAttribute("x", "0");
+                goalTitle.setAttribute("y", currentY.toString());
+                goalTitle.setAttribute("font-family", "Arial, sans-serif");
+                goalTitle.setAttribute("font-size", "12");
+                goalTitle.setAttribute("font-weight", "bold");
+                goalTitle.setAttribute("fill", "#333");
+                goalTitle.textContent = "Course Goal:";
+                contentGroup.appendChild(goalTitle);
+                
+                currentY = addWrappedText(contentGroup, course.details.goal, currentY + 15);
+                
+                currentY += 25;
+                const objectivesTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                objectivesTitle.setAttribute("x", "0");
+                objectivesTitle.setAttribute("y", currentY.toString());
+                objectivesTitle.setAttribute("font-family", "Arial, sans-serif");
+                objectivesTitle.setAttribute("font-size", "12");
+                objectivesTitle.setAttribute("font-weight", "bold");
+                objectivesTitle.setAttribute("fill", "#333");
+                objectivesTitle.textContent = "Objectives:";
+                contentGroup.appendChild(objectivesTitle);
+                
+                currentY += 15;
+                course.details.objectives.forEach((objective) => {
+                    const objectiveText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    objectiveText.setAttribute("x", "10");
+                    objectiveText.setAttribute("y", currentY.toString());
+                    objectiveText.setAttribute("font-family", "Arial, sans-serif");
+                    objectiveText.setAttribute("font-size", "11");
+                    objectiveText.setAttribute("fill", "#666");
+                    objectiveText.textContent = `• ${objective}`;
+                    contentGroup.appendChild(objectiveText);
+                    currentY += 15;
+                });
+                
+                currentY += 20;
+                const outcomesTitle = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                outcomesTitle.setAttribute("x", "0");
+                outcomesTitle.setAttribute("y", currentY.toString());
+                outcomesTitle.setAttribute("font-family", "Arial, sans-serif");
+                outcomesTitle.setAttribute("font-size", "12");
+                outcomesTitle.setAttribute("font-weight", "bold");
+                outcomesTitle.setAttribute("fill", "#333");
+                outcomesTitle.textContent = "Learning Outcomes:";
+                contentGroup.appendChild(outcomesTitle);
+                
+                currentY += 15;
+                course.details.outcomes.forEach((outcome) => {
+                    const outcomeText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    outcomeText.setAttribute("x", "10");
+                    outcomeText.setAttribute("y", currentY.toString());
+                    outcomeText.setAttribute("font-family", "Arial, sans-serif");
+                    outcomeText.setAttribute("font-size", "11");
+                    outcomeText.setAttribute("fill", "#666");
+                    outcomeText.textContent = `• ${outcome}`;
+                    contentGroup.appendChild(outcomeText);
+                    currentY += 15;
+                });
+                
+                const isDisabled = isCourseDisabled(course, currentSeason);
+                const canSelect = canSelectCourse(course, currentSeason);
+                if ((isDisabled || !canSelect) && !state.selectedCourses[currentSeason].has(course.title)) {
+                    currentY += 20;
+                    const helpText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    helpText.setAttribute("x", "0");
+                    helpText.setAttribute("y", currentY.toString());
+                    helpText.setAttribute("font-family", "Arial, sans-serif");
+                    helpText.setAttribute("font-size", "12");
+                    helpText.setAttribute("font-style", "italic");
+                    helpText.setAttribute("fill", "#F44336");
+                    helpText.textContent = isDisabled ? getDisabledReason(course, currentSeason) : getCannotSelectReason(course, currentSeason);
+                    contentGroup.appendChild(helpText);
+                }
+            } else {
+                const placeholderText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                placeholderText.setAttribute("x", "0");
+                placeholderText.setAttribute("y", "0");
+                placeholderText.setAttribute("font-family", "Arial, sans-serif");
+                placeholderText.setAttribute("font-size", "12");
+                placeholderText.setAttribute("fill", "#666");
+                placeholderText.textContent = "Course details coming soon...";
+                contentGroup.appendChild(placeholderText);
+            }
+            
+            return contentGroup;
+        }
+        
+        function addWrappedText(parent, text, startY) {
+            const words = text.split(' ');
+            let currentLine = '';
+            let yOffset = startY;
+            
+            words.forEach((word, index) => {
+                const testLine = currentLine ? currentLine + ' ' + word : word;
+                
+                if (testLine.length > 45) {
+                    const textLine = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textLine.setAttribute("x", "0");
+                    textLine.setAttribute("y", yOffset.toString());
+                    textLine.setAttribute("font-family", "Arial, sans-serif");
+                    textLine.setAttribute("font-size", "11");
+                    textLine.setAttribute("fill", "#666");
+                    textLine.textContent = currentLine;
+                    parent.appendChild(textLine);
+                    
+                    currentLine = word;
+                    yOffset += 15;
+                } else {
+                    currentLine = testLine;
+                }
+                
+                if (index === words.length - 1) {
+                    const textLine = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    textLine.setAttribute("x", "0");
+                    textLine.setAttribute("y", yOffset.toString());
+                    textLine.setAttribute("font-family", "Arial, sans-serif");
+                    textLine.setAttribute("font-size", "11");
+                    textLine.setAttribute("fill", "#666");
+                    textLine.textContent = currentLine;
+                    parent.appendChild(textLine);
+                }
+            });
+            
+            return yOffset;
+        }
+        
+        function getDisabledReason(course, currentSeason) {
+            for (let season in state.selectedCourses) {
+                if (season !== currentSeason && state.selectedCourses[season].has(course.title)) {
+                    return `Already selected for ${season}`;
+                }
+            }
+            return "Not available for selection";
+        }
+        
+        function getCannotSelectReason(course, currentSeason) {
+            if (state.selectedCourses[currentSeason].size >= 2) {
+                return "Maximum 2 courses per season";
+            }
+            
+            if (course.type === 'foundation' && state.foundationSeason && state.foundationSeason !== currentSeason) {
+                return `Foundation courses must be in ${state.foundationSeason}`;
+            }
+            
+            if (course.type === 'leadership') {
+                if (!state.foundationSeason) {
+                    return "Select foundation courses first";
+                }
+                
+                const nextSeason = getNextSeason(state.foundationSeason);
+                
+                let leadershipInRequiredSeason = 0;
+                for (let c of state.selectedCourses[nextSeason]) {
+                    const selectedCourse = allCourses.find(ac => ac.title === c);
+                    if (selectedCourse && selectedCourse.type === 'leadership') {
+                        leadershipInRequiredSeason++;
+                    }
+                }
+                
+                if (leadershipInRequiredSeason === 0 && currentSeason !== nextSeason) {
+                    return `First leadership course must be in ${nextSeason}`;
+                }
+                
+                if (!isValidLeadershipSelection(currentSeason)) {
+                    return `Leadership courses must be after foundations (${state.foundationSeason})`;
+                }
+            }
+            
+            if (course.type === 'elective') {
+                let totalElectives = 0;
+                for (let s in state.selectedCourses) {
+                    totalElectives += [...state.selectedCourses[s]].filter(c => {
+                        const actualCourse = allCourses.find(ac => ac.title === c);
+                        return actualCourse.type === 'elective' || 
+                               (actualCourse.type === 'leadership' && isExtraLeadershipCourse(actualCourse, s));
+                    }).length;
+                }
+                if (totalElectives >= 5) {
+                    return "Maximum 5 electives reached";
+                }
+            }
+            
+            return "Cannot select this course";
+        }
+        
+        // Event Handlers
+        function toggleCourseDetails(courseGroup, course, currentSeason) {
+            const courseKey = `${course.title}-${currentSeason}`;
+            const cardRect = courseGroup.querySelector('rect:first-child');
+            const indicatorRect = courseGroup.querySelector('rect:nth-child(2)');
+            const minimizedCheckbox = courseGroup.querySelector('.minimized-checkbox');
+            const seasonsContainer = courseGroup.querySelector('[data-season-icons="true"]');
+            const linkGroup = courseGroup.querySelector('.course-link');
+            
+            if (state.expandedCourses.has(courseKey)) {
+                state.expandedCourses.delete(courseKey);
+                courseGroup.classList.remove('expanded');
+                
+                cardRect.setAttribute("height", LAYOUT_CONFIG.cardHeight.toString());
+                indicatorRect.setAttribute("height", LAYOUT_CONFIG.cardHeight.toString());
+                
+                if (seasonsContainer) {
+                    const seasonIconsWidth = course.seasons.length * 15;
+                    seasonsContainer.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - seasonIconsWidth - 10}, ${LAYOUT_CONFIG.cardHeight - 15})`);
+                }
+                
+                // Link icon doesn't need to move
+                
+                const expandedContent = courseGroup.querySelector('.expanded-content');
+                if (expandedContent) {
+                    expandedContent.remove();
+                }
+                
+                if (minimizedCheckbox) {
+                    minimizedCheckbox.style.display = '';
+                }
+                
+                recalculateLayout();
+            } else {
+                state.expandedCourses.add(courseKey);
+                courseGroup.classList.add('expanded');
+                
+                const expandedHeight = calculateExpandedHeight(course);
+                cardRect.setAttribute("height", expandedHeight.toString());
+                indicatorRect.setAttribute("height", expandedHeight.toString());
+                
+                if (seasonsContainer) {
+                    const seasonIconsWidth = course.seasons.length * 15;
+                    seasonsContainer.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - seasonIconsWidth - 10}, ${expandedHeight - 15})`);
+                }
+                
+                // Link icon stays in the same position
+                
+                if (minimizedCheckbox) {
+                    minimizedCheckbox.style.display = 'none';
+                }
+                
+                const expandedContent = createExpandedContent(course, currentSeason);
+                courseGroup.appendChild(expandedContent);
+                
+                const expandedCheckbox = createCheckbox(course, currentSeason);
+                expandedCheckbox.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - 30}, 10)`);
+                courseGroup.appendChild(expandedCheckbox);
+                
+                courseGroup.parentNode.appendChild(courseGroup);
+                
+                recalculateLayout();
+            }
+        }
+        
+        function handleCourseSelection(course, season) {
+            const courseKey = course.title;
+            
+            if (state.selectedCourses[season].has(courseKey)) {
+                state.selectedCourses[season].delete(courseKey);
+                
+                if (course.type === 'foundation') {
+                    let foundationCount = 0;
+                    let newFoundationSeason = null;
+                    for (let s in state.selectedCourses) {
+                        for (let c of state.selectedCourses[s]) {
+                            const actualCourse = allCourses.find(ac => ac.title === c);
+                            if (actualCourse && actualCourse.type === 'foundation') {
+                                foundationCount++;
+                                newFoundationSeason = s;
+                            }
+                        }
+                    }
+                    state.foundationSeason = foundationCount > 0 ? newFoundationSeason : null;
+                }
+            } else {
+                if (canSelectCourse(course, season)) {
+                    for (let s in state.selectedCourses) {
+                        if (s !== season) state.selectedCourses[s].delete(courseKey);
+                    }
+                    
+                    state.selectedCourses[season].add(courseKey);
+                    
+                    if (course.type === 'foundation') {
+                        state.foundationSeason = season;
+                    }
+                }
+            }
+            
+            updateVisualization();
+            updateRequirementsSummary();
+        }
+        
+        function updateVisualization() {
+            const svg = document.getElementById("courseDiagram");
+            
+            const courseGroups = svg.querySelectorAll('.course-card');
+            courseGroups.forEach(courseGroup => {
+                const courseTitle = courseGroup.getAttribute('data-course-title');
+                const currentSeason = courseGroup.getAttribute('data-current-season');
+                
+                const isSelected = state.selectedCourses[currentSeason]?.has(courseTitle);
+                
+                const course = allCourses.find(c => c.title === courseTitle);
+                const isDisabled = isCourseDisabled(course, currentSeason);
+                
+                courseGroup.classList.toggle('selected', isSelected);
+                courseGroup.classList.toggle('disabled', isDisabled);
+                
+                const checkboxes = courseGroup.querySelectorAll('.checkbox');
+                checkboxes.forEach(checkbox => {
+                    const checkboxRect = checkbox.querySelector('rect');
+                    const checkmarkPath = checkbox.querySelector('path');
+                    
+                    checkboxRect.setAttribute("fill", isSelected ? "#0066cc" : "white");
+                    checkboxRect.setAttribute("stroke", isSelected ? "#0066cc" : "#666");
+                    
+                    if (isSelected && !checkmarkPath) {
+                        const checkmark = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        checkmark.setAttribute("d", "M5 10 l4 4 l6 -6");
+                        checkmark.setAttribute("fill", "none");
+                        checkmark.setAttribute("stroke", "white");
+                        checkmark.setAttribute("stroke-width", "2.5");
+                        checkbox.appendChild(checkmark);
+                    } else if (!isSelected && checkmarkPath) {
+                        checkmarkPath.remove();
+                    }
+                    
+                    if (isDisabled && !isSelected) {
+                        checkbox.classList.add('disabled');
+                    } else {
+                        checkbox.classList.remove('disabled');
+                    }
+                });
+            });
+            
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            seasons.forEach(season => {
+                const clearButton = svg.querySelector(`.clear-season-btn[data-season="${season}"]`);
+                if (clearButton) {
+                    const hasSelections = state.selectedCourses[season].size > 0;
+                    clearButton.classList.toggle('visible', hasSelections);
+                }
+            });
+            
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            if (clearAllBtn) {
+                let totalSelections = 0;
+                for (let season in state.selectedCourses) {
+                    totalSelections += state.selectedCourses[season].size;
+                }
+                clearAllBtn.disabled = totalSelections === 0;
+            }
+        }
+        
+        function updateRequirementsSummary() {
+            const foundationLeadershipColumn = document.getElementById('foundationLeadershipColumn');
+            const electivesColumn = document.getElementById('electivesColumn');
+            
+            foundationLeadershipColumn.innerHTML = '';
+            electivesColumn.innerHTML = '';
+            
+            const foundationCourses = [];
+            const leadershipCourses = [];
+            const electiveCourses = [];
+            let requiredLeadershipCount = 0;
+            
+            for (let season in state.selectedCourses) {
+                [...state.selectedCourses[season]].forEach(courseTitle => {
+                    const course = allCourses.find(c => c.title === courseTitle);
+                    const courseInfo = { title: courseTitle, season: season, type: course.type };
+                    
+                    if (course.type === 'foundation') {
+                        foundationCourses.push(courseInfo);
+                    } else if (course.type === 'leadership') {
+                        if (state.foundationSeason && season === getNextSeason(state.foundationSeason)) {
+                            requiredLeadershipCount++;
+                            leadershipCourses.push({ ...courseInfo, isRequired: true });
+                        } else {
+                            leadershipCourses.push({ ...courseInfo, isRequired: false });
+                            if (state.foundationSeason && requiredLeadershipCount > 0) {
+                                electiveCourses.push({ ...courseInfo, isExtra: true });
+                            }
+                        }
+                    } else if (course.type === 'elective') {
+                        electiveCourses.push(courseInfo);
+                    }
+                });
+            }
+            
+            const foundationGroup = document.createElement('div');
+            foundationGroup.className = 'requirements-group';
+            foundationGroup.innerHTML = `
+                <h4 class="${foundationCourses.length === 2 ? 'complete' : 'incomplete'}">
+                    ${foundationCourses.length === 2 ? '✅' : '📋'} Foundation Courses (2 required, same season)
+                </h4>
+                <ul>
+                    ${foundationCourses.map(course => 
+                        `<li class="course-item">• ${course.title} (${course.season})</li>`
+                    ).join('')}
+                    ${foundationCourses.length < 2 ? 
+                        `<li class="incomplete">${2 - foundationCourses.length} more needed</li>` : ''}
+                </ul>
+            `;
+            foundationLeadershipColumn.appendChild(foundationGroup);
+            
+            const leadershipGroup = document.createElement('div');
+            leadershipGroup.className = 'requirements-group';
+            leadershipGroup.innerHTML = `
+                <h4 class="${requiredLeadershipCount >= 1 ? 'complete' : 'incomplete'}">
+                    ${requiredLeadershipCount >= 1 ? '✅' : '📋'} Leadership Core (1 required, season after foundations)
+                </h4>
+                <ul>
+                    ${leadershipCourses.map(course => 
+                        `<li class="course-item">• ${course.title} (${course.season})${course.isRequired ? '' : ' - counts as elective'}</li>`
+                    ).join('')}
+                    ${requiredLeadershipCount === 0 ? 
+                        `<li class="incomplete">1 required in season after foundations</li>` : ''}
+                </ul>
+            `;
+            foundationLeadershipColumn.appendChild(leadershipGroup);
+            
+            const electiveGroup = document.createElement('div');
+            electiveGroup.className = 'requirements-group';
+            electiveGroup.innerHTML = `
+                <h4 class="${electiveCourses.length >= 5 ? 'complete' : 'incomplete'}">
+                    ${electiveCourses.length >= 5 ? '✅' : '📋'} Elective Courses (5 required)
+                </h4>
+                <ul>
+                    ${electiveCourses.map(course => 
+                        `<li class="course-item">• ${course.title} (${course.season})${course.isExtra ? ' - extra leadership' : ''}</li>`
+                    ).join('')}
+                    ${electiveCourses.length < 5 ? 
+                        `<li class="incomplete">${5 - electiveCourses.length} more needed</li>` : ''}
+                </ul>
+            `;
+            electivesColumn.appendChild(electiveGroup);
+        }
+        
+        function recalculateLayout() {
+            const svg = document.getElementById("courseDiagram");
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            let currentY = 215;
+            
+            seasons.forEach((seasonName) => {
+                const seasonGroup = svg.querySelector(`[data-season="${seasonName}"]`);
+                const seasonData = courseData[seasonName];
+                
+                if (seasonGroup && seasonGroup.style.display !== 'none') {
+                    seasonGroup.setAttribute("transform", `translate(${LAYOUT_CONFIG.legendStartX}, ${currentY})`);
+                    
+                    const { rowPositions, totalHeight } = calculateSectionLayout(seasonData.courses, seasonName);
+                    
+                    const coursesGroup = seasonGroup.querySelector("g:last-child");
+                    seasonData.courses.forEach((course, index) => {
+                        const courseGroup = coursesGroup.querySelector(`[data-course-title="${course.title}"]`);
+                        if (courseGroup && courseGroup.style.display !== 'none') {
+                            const { row, col, x } = calculateCardPosition(index);
+                            const y = rowPositions[row].y;
+                            
+                            courseGroup.setAttribute("transform", `translate(${x}, ${y})`);
+                            
+                            const cardRect = courseGroup.querySelector('rect:first-child');
+                            const indicatorRect = courseGroup.querySelector('rect:nth-child(2)');
+                            const courseKey = `${course.title}-${seasonName}`;
+                            const isExpanded = state.expandedCourses.has(courseKey);
+                            
+                            if (isExpanded) {
+                                const expandedHeight = calculateExpandedHeight(course);
+                                cardRect.setAttribute("height", expandedHeight.toString());
+                                indicatorRect.setAttribute("height", expandedHeight.toString());
+                                
+                                const seasonsContainer = courseGroup.querySelector('[data-season-icons="true"]');
+                                if (seasonsContainer) {
+                                    const seasonIconsWidth = course.seasons.length * 15;
+                                    seasonsContainer.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - seasonIconsWidth - 10}, ${expandedHeight - 15})`);
+                                }
+                            } else {
+                                cardRect.setAttribute("height", LAYOUT_CONFIG.cardHeight.toString());
+                                indicatorRect.setAttribute("height", LAYOUT_CONFIG.cardHeight.toString());
+                                
+                                const seasonsContainer = courseGroup.querySelector('[data-season-icons="true"]');
+                                if (seasonsContainer) {
+                                    const seasonIconsWidth = course.seasons.length * 15;
+                                    seasonsContainer.setAttribute("transform", `translate(${LAYOUT_CONFIG.cardWidth - seasonIconsWidth - 10}, ${LAYOUT_CONFIG.cardHeight - 15})`);
+                                }
+                                
+                                const expandedContent = courseGroup.querySelector('.expanded-content');
+                                if (expandedContent) {
+                                    expandedContent.remove();
+                                }
+                            }
+                        }
+                    });
+                    
+                    currentY += LAYOUT_CONFIG.headerHeight + LAYOUT_CONFIG.headerToContentGap + totalHeight + LAYOUT_CONFIG.sectionGap;
+                }
+            });
+            
+            svg.setAttribute('viewBox', `0 0 1200 ${currentY + 100}`);
+            
+            const contentBackground = svg.querySelector('#contentBackground');
+            if (contentBackground) {
+                contentBackground.setAttribute('height', (currentY - 200 + LAYOUT_CONFIG.contentPadding).toString());
+            }
+        }
+        
+        // Filter and Search Functions
+        function courseMatchesFilters(course) {
+            let matchesSearch = true;
+            if (state.searchQuery.trim() !== '') {
+                const query = state.searchQuery.toLowerCase();
+                const titleMatch = course.title.toLowerCase().includes(query);
+                const instructorMatch = course.instructor.toLowerCase().includes(query);
+                
+                let descriptionMatch = false;
+                if (course.details) {
+                    const goalMatch = course.details.goal.toLowerCase().includes(query);
+                    const objectivesMatch = course.details.objectives.some(obj => obj.toLowerCase().includes(query));
+                    const outcomesMatch = course.details.outcomes.some(outcome => outcome.toLowerCase().includes(query));
+                    descriptionMatch = goalMatch || objectivesMatch || outcomesMatch;
+                }
+                
+                matchesSearch = titleMatch || instructorMatch || descriptionMatch;
+            }
+            
+            let matchesType = true;
+            if (state.selectedFilters.type.size > 0) {
+                matchesType = state.selectedFilters.type.has(course.type);
+            }
+            
+            let matchesSeason = true;
+            if (state.selectedFilters.season.size > 0) {
+                matchesSeason = course.seasons.some(season => state.selectedFilters.season.has(season));
+            }
+            
+            return matchesSearch && matchesType && matchesSeason;
+        }
+        
+        function applyFilters() {
+            const svg = document.getElementById("courseDiagram");
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            let currentY = 215;
+            
+            seasons.forEach((seasonName) => {
+                const seasonGroup = svg.querySelector(`[data-season="${seasonName}"]`);
+                const seasonData = courseData[seasonName];
+                
+                const filteredCourses = seasonData.courses.filter(courseMatchesFilters);
+                
+                if (filteredCourses.length === 0) {
+                    seasonGroup.style.display = 'none';
+                    return;
+                }
+                
+                seasonGroup.style.display = '';
+                seasonGroup.setAttribute("transform", `translate(${LAYOUT_CONFIG.legendStartX}, ${currentY})`);
+                
+                const { rowPositions, totalHeight } = calculateSectionLayout(filteredCourses, seasonName);
+                
+                const coursesGroup = seasonGroup.querySelector("g:last-child");
+                seasonData.courses.forEach((course) => {
+                    const courseGroup = coursesGroup.querySelector(`[data-course-title="${course.title}"]`);
+                    if (courseGroup) {
+                        if (courseMatchesFilters(course)) {
+                            courseGroup.style.display = '';
+                            const index = filteredCourses.findIndex(c => c.title === course.title);
+                            if (index !== -1) {
+                                const { row, col, x } = calculateCardPosition(index);
+                                const y = rowPositions[row].y;
+                                courseGroup.setAttribute("transform", `translate(${x}, ${y})`);
+                            }
+                        } else {
+                            courseGroup.style.display = 'none';
+                        }
+                    }
+                });
+                
+                currentY += LAYOUT_CONFIG.headerHeight + LAYOUT_CONFIG.headerToContentGap + totalHeight + LAYOUT_CONFIG.sectionGap;
+            });
+            
+            svg.setAttribute('viewBox', `0 0 1200 ${currentY + 100}`);
+            
+            const contentBackground = svg.querySelector('#contentBackground');
+            if (contentBackground) {
+                contentBackground.setAttribute('height', (currentY - 200 + LAYOUT_CONFIG.contentPadding).toString());
+            }
+        }
+        
+        function toggleFilter(filterType, filterValue) {
+            if (state.selectedFilters[filterType].has(filterValue)) {
+                state.selectedFilters[filterType].delete(filterValue);
+            } else {
+                state.selectedFilters[filterType].add(filterValue);
+            }
+            applyFilters();
+            updateClearFiltersButtonState();
+        }
+        
+        function setupLegendClickHandlers() {
+            const legendItems = document.querySelectorAll('.legend-item');
+            legendItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const filterType = this.getAttribute('data-filter-type');
+                    const filterValue = this.getAttribute('data-filter-value');
+                    
+                    this.classList.toggle('selected');
+                    
+                    toggleFilter(filterType, filterValue);
+                });
+            });
+        }
+        
+        function clearSeasonSelections(season) {
+            state.selectedCourses[season].clear();
+            
+            if (season === state.foundationSeason) {
+                let foundationCount = 0;
+                let newFoundationSeason = null;
+                for (let s in state.selectedCourses) {
+                    for (let c of state.selectedCourses[s]) {
+                        const actualCourse = allCourses.find(ac => ac.title === c);
+                        if (actualCourse && actualCourse.type === 'foundation') {
+                            foundationCount++;
+                            newFoundationSeason = s;
+                        }
+                    }
+                }
+                state.foundationSeason = foundationCount > 0 ? newFoundationSeason : null;
+            }
+            
+            updateVisualization();
+            updateRequirementsSummary();
+        }
+        
+        function clearAllSelections() {
+            for (let season in state.selectedCourses) {
+                state.selectedCourses[season].clear();
+            }
+            
+            state.foundationSeason = null;
+            
+            updateVisualization();
+            updateRequirementsSummary();
+        }
+        
+        function updateClearFiltersButtonState() {
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            if (clearFiltersBtn) {
+                const hasFilters = state.selectedFilters.type.size > 0 || 
+                                   state.selectedFilters.season.size > 0 || 
+                                   state.searchQuery.trim() !== '';
+                clearFiltersBtn.disabled = !hasFilters;
+            }
+        }
+        
+        function shareSummary() {
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'absolute';
+            iframe.style.width = '0px';
+            iframe.style.height = '0px';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+            
+            const summaryContent = document.getElementById('requirementsSummary').cloneNode(true);
+            
+            const buttons = summaryContent.querySelectorAll('button');
+            buttons.forEach(btn => btn.remove());
+            
+            const printStyles = `
+                <html>
+                <head>
+                    <title>Course Selection Summary</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .requirements-summary { padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; }
+                        .requirements-columns { display: flex; gap: 40px; }
+                        .requirements-column { flex: 1; }
+                        .requirements-group { margin-bottom: 20px; }
+                        .requirements-group h4 { margin: 0 0 10px 0; color: #666; font-size: 16px; }
+                        .requirements-group ul { margin: 0; padding-left: 20px; }
+                        .requirements-group li { margin: 5px 0; color: #666; }
+                        .requirements-group .complete { color: #4CAF50; }
+                        .requirements-group .incomplete { color: #F44336; }
+                        .requirements-group .course-item { color: #333; font-size: 14px; margin-left: 20px; }
+                        @media print { button { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    ${summaryContent.outerHTML}
+                </body>
+                </html>
+            `;
+            
+            iframe.contentWindow.document.open();
+            iframe.contentWindow.document.write(printStyles);
+            iframe.contentWindow.document.close();
+            
+            iframe.onload = function() {
+                setTimeout(() => {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(iframe);
+                    }, 1000);
+                }, 250);
+            };
+        }
+        
+        function shareAll() {
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'absolute';
+            iframe.style.width = '0px';
+            iframe.style.height = '0px';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+            
+            const container = document.getElementById('container').cloneNode(true);
+            
+            const svg = document.getElementById('courseDiagram');
+            const svgString = new XMLSerializer().serializeToString(svg);
+            
+            const clonedSvg = container.querySelector('svg');
+            if (clonedSvg) {
+                const div = document.createElement('div');
+                div.innerHTML = svgString;
+                clonedSvg.parentNode.replaceChild(div.firstChild, clonedSvg);
+            }
+            
+            const printStyles = `
+                <html>
+                <head>
+                    <title>Course Selection Tool</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        #container { background-color: white; padding: 20px; }
+                        svg { max-width: 100%; height: auto; display: block; }
+                        .requirements-summary { margin-top: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 8px; }
+                        .requirements-columns { display: flex; gap: 40px; }
+                        .requirements-column { flex: 1; }
+                        .requirements-group { margin-bottom: 20px; }
+                        .requirements-group h4 { margin: 0 0 10px 0; color: #666; font-size: 16px; }
+                        .requirements-group ul { margin: 0; padding-left: 20px; }
+                        .requirements-group li { margin: 5px 0; color: #666; }
+                        .requirements-group .complete { color: #4CAF50; }
+                        .requirements-group .incomplete { color: #F44336; }
+                        .requirements-group .course-item { color: #333; font-size: 14px; margin-left: 20px; }
+                        .course-card rect { fill: white; stroke: #ddd; }
+                        .course-card.selected rect:first-child { stroke: #0066cc; stroke-width: 3; }
+                        .course-card.disabled { opacity: 0.5; }
+                        @media print { button { display: none; } .share-buttons { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    ${container.outerHTML}
+                </body>
+                </html>
+            `;
+            
+            iframe.contentWindow.document.open();
+            iframe.contentWindow.document.write(printStyles);
+            iframe.contentWindow.document.close();
+            
+            iframe.onload = function() {
+                setTimeout(() => {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(iframe);
+                    }, 1000);
+                }, 250);
+            };
+        }
+        
+        function shareSelectionTool() {
+            const toolUrl = 'https://example.com/course-selector'; // TODO: Update with actual URL
+            
+            navigator.clipboard.writeText(toolUrl).then(() => {
+                const notification = document.createElement('div');
+                notification.textContent = 'Link copied to clipboard!';
+                notification.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #4CAF50;
+                    color: white;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    z-index: 1000;
+                `;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.remove();
+                }, 2000);
+                
+                window.open(toolUrl, '_blank');
+            }).catch(err => {
+                console.error('Failed to copy URL:', err);
+                window.open(toolUrl, '_blank');
+            });
+        }
+        
+        function clearAllFilters() {
+            state.searchQuery = '';
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            state.selectedFilters.type.clear();
+            state.selectedFilters.season.clear();
+            
+            const legendItems = document.querySelectorAll('.legend-item');
+            legendItems.forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            applyFilters();
+            updateClearFiltersButtonState();
+        }
+        
+        // Initialization
+        function buildDiagram() {
+            const svg = document.getElementById("courseDiagram");
+            
+            let currentY = 215;
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            
+            seasons.forEach((seasonName) => {
+                const seasonData = courseData[seasonName];
+                
+                const seasonSection = createSeasonSection(svg, seasonData, seasonName, currentY);
+                svg.appendChild(seasonSection);
+                
+                const { totalHeight } = calculateSectionLayout(seasonData.courses, seasonName);
+                
+                currentY += LAYOUT_CONFIG.headerHeight + LAYOUT_CONFIG.headerToContentGap + totalHeight + LAYOUT_CONFIG.sectionGap;
+            });
+            
+            svg.setAttribute('viewBox', `0 0 1200 ${currentY + 100}`);
+            
+            const contentBackground = svg.querySelector('#contentBackground');
+            if (contentBackground) {
+                contentBackground.setAttribute('height', (currentY - 200 + LAYOUT_CONFIG.contentPadding).toString());
+            }
+            
+            setupLegendClickHandlers();
+            
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', function(e) {
+                state.searchQuery = e.target.value;
+                applyFilters();
+                updateClearFiltersButtonState();
+            });
+            
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.target.blur();
+                }
+            });
+            
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            clearAllBtn.addEventListener('click', clearAllSelections);
+            
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+            clearFiltersBtn.addEventListener('click', clearAllFilters);
+            
+            const shareSummaryBtn = document.getElementById('shareSummaryBtn');
+            shareSummaryBtn.addEventListener('click', shareSummary);
+            
+            const shareAllBtn = document.getElementById('shareAllBtn');
+            shareAllBtn.addEventListener('click', shareAll);
+            
+            const shareToolBtn = document.getElementById('shareToolBtn');
+            shareToolBtn.addEventListener('click', shareSelectionTool);
+            
+            updateRequirementsSummary();
+        }
+        
+        // Initialize the diagram
+        window.onload = buildDiagram;
+    </script>
+</body>
+</html>
